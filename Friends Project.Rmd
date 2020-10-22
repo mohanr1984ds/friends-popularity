@@ -1,0 +1,153 @@
+---
+title: "Final Project"
+author: "Mohan Rajendran"
+date: "12/12/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Amazon Reviews
+In this problem, you will use R to do further analysis on the Amazon reviews data.  Where relevant, you are encouraged to use functions from `dplyr` and `ggformula`.
+
+Load necessary libraries here.
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+library(magrittr)
+library(dplyr)
+library(readr)
+library(ggformula)
+library(stringr)
+library(png)
+library(grid)
+```
+
+### Reading and cleaning the data
+
+```{r}
+Friends_All_df <- read_csv(file="Friends_All_Tweet_Data.csv", col_names=TRUE)
+head(Friends_All_df)
+
+```
+
+### Computing data frames for use in chi test and t-test
+
+```{r}
+Friends_All_df <- Friends_All_df %>%
+  mutate(created_at_modified = substring(Friends_All_df$created_at, 1, 10))
+Friends_All_df
+
+Friends_All_Daily_Count_df <- Friends_All_df %>%
+  group_by(created_at_modified, Character) %>%
+  summarize(count = n())
+Friends_All_Daily_Count_df
+
+Friends_All_Count_df <- Friends_All_df %>%
+  group_by(Character) %>%
+  summarize(count = n())
+Friends_All_Count_df
+
+```
+
+### Chi Square goodness of fit will let us know whether the characters are mentioned in same frequencies
+
+```{r}
+
+res <- chisq.test(Friends_All_Count_df$count, p = c(1/6, 1/6, 1/6, 1/6, 1/6, 1/6))
+res
+
+```
+
+
+
+```{r}
+
+img <- readPNG("Friends.png")
+g <- rasterGrob(img, interpolate=TRUE)
+
+ggplot(Friends_All_Count_df, aes(x = reorder(Character, count), count, fill = Character), y = count) +
+        
+        geom_bar(stat = "identity") +
+        annotation_custom(g, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=1000)+
+        ggtitle("Friends Characters Frequency Chart")+
+        xlab("Character") + ylab("Count")
+
+```
+
+### It is evident from the p value of less than the machine epsilon of 0.00000000000000022  that the frequencies of tweets for the six characters are not equally distributed
+
+### Two Sample t-test are performed to understand whether chandler mentions in the tweets are more than the other charcters.
+
+```{r}
+compute_t_test <- function(df, character1, character2){
+  ##This function will accept the dataframe and two character names and compute the t-test between them
+  chr1_df <- filter(df, Character == character1 )
+  chr2_df <- filter(df, Character == character2)
+  res <- t.test(chr1_df$count, chr2_df$count, alternative = "greater")
+  return(res)
+  
+}
+
+print_t_test_outcome <- function(p_value,  Character1, Character2){
+  if (p_value < 0.05){
+  print(paste0("With p value of ", p_value, " it is safe to say there is statistically significant evidence that the frequency of tweets about ", Character1, " is greater than the tweets towards ", Character2))
+} else {
+  print(paste0("With p value of ", p_value, " it is safe to say there is no statistically significant evidence that the frequency of tweets about ", Character1, " is greater than the tweets towards ", Character2))
+}
+}
+
+```
+
+The hypothesis for the two sample t test with alternative = greater is as follows
+H0: u1 - u2 = 0
+Ha: u1 - u2 > 0
+
+```{r}
+
+Character1 = 'Chandler'
+Character2 = 'Ross'
+res <- compute_t_test(Friends_All_Daily_Count_df, Character1, Character2)
+print_t_test_outcome(res$p.value, Character1, Character2)
+
+```
+
+
+
+```{r}
+Character1 = 'Chandler'
+Character2 = 'Joey'
+res <- compute_t_test(Friends_All_Daily_Count_df, Character1, Character2)
+print_t_test_outcome(res$p.value, Character1, Character2)
+```
+
+
+
+```{r}
+Character1 = 'Chandler'
+Character2 = 'Monica'
+res <- compute_t_test(Friends_All_Daily_Count_df, Character1, Character2)
+print_t_test_outcome(res$p.value, Character1, Character2)
+```
+
+
+
+```{r}
+Character1 = 'Chandler'
+Character2 = 'Phoebe'
+res <- compute_t_test(Friends_All_Daily_Count_df, Character1, Character2)
+print_t_test_outcome(res$p.value, Character1, Character2)
+```
+
+
+
+```{r}
+Character1 = 'Chandler'
+Character2 = 'Rachel'
+res <- compute_t_test(Friends_All_Daily_Count_df, Character1, Character2)
+print_t_test_outcome(res$p.value, Character1, Character2)
+```
+
+### Compared to all the characters, Rachel is more close to Chandler in twitter mentions
+
